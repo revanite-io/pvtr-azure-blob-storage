@@ -23,3 +23,13 @@ func VerifyPayload(payloadData any) (payload data.Payload, message string) {
 func NotImplemented(payloadData any) (result gemara.Result, message string, confidence gemara.ConfidenceLevel) {
 	return gemara.NeedsReview, "Not implemented", confidence
 }
+
+// AzureBuiltIn indicates that this control is enforced by Azure for all resources.
+func AzureBuiltIn(payloadData any) (result gemara.Result, message string, confidence gemara.ConfidenceLevel) {
+	_, message = VerifyPayload(payloadData)
+	if message != "" {
+		return gemara.Unknown, message, confidence
+	}
+
+	return gemara.Passed, "This control is enforced by Azure for all projects", confidence
+}
