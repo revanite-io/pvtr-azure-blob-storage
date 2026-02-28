@@ -1,5 +1,5 @@
 loglevel: # default: info; options: trace | debug | info | warn | error
-write-directory: # default: evaluation_results 
+write-directory: # default: evaluation_results
 write: # default: true; false will disable writing the output to file
 output: # default: yaml; options: yaml | json | sarif
 services:
@@ -9,7 +9,7 @@ services:
   # Replace the example service name below with your service id/name. Multiple services
   # may be provided at the same level as separate map entries.
   myService1: # unique name/id for the evaluation
-    plugin: finos-azure_blob_storage-plugin # required while running via Privateer
+    plugin: pvtr-azure-blob-storage # required while running via Privateer
 
     # The policy section may be set at the top level if assessing multiple services via privateer
     policy:

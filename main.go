@@ -24,7 +24,7 @@ var (
 	// BuiltAt is the actual build datetime
 	BuiltAt = ""
 
-	PluginName   = "finos-azure_blob_storage-plugin"
+	PluginName   = "pvtr-azure-blob-storage"
 	RequiredVars = []string{}
 
 	//go:embed data/catalogs
