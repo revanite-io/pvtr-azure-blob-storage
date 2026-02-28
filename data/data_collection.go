@@ -1,8 +1,17 @@
 package data
 
 import (
+	"context"
+	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/monitor/armmonitor"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armpolicy"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/security/armsecurity"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
 	"github.com/privateerproj/privateer-sdk/config"
 )
 
@@ -173,21 +182,440 @@ type KeyRotationPolicy struct {
 	MaximumDaysToRotate *int
 }
 
-// Loader builds and returns a payload for the evaluation.
-// Signature matches what the SDK expects
-// TODO: Implement actual Azure API calls to populate payload data
-func Loader(cfg *config.Config) (payload any, err error) {
-	// TODO: Parse storage account resource ID from config
-	// TODO: Authenticate with Azure using DefaultAzureCredential
-	// TODO: Fetch storage account resource using armstorage.AccountsClient
-	// TODO: Fetch blob service properties using armstorage.BlobServicesClient
-	// TODO: Fetch diagnostic settings using armmonitor.DiagnosticSettingsClient
-	// TODO: Fetch Defender for Storage settings using armsecurity.DefenderForStorageClient
-	// TODO: Fetch Azure Policy assignments using armpolicy.Client
-	// TODO: Parse and populate all payload fields
+// resourceID holds parsed components of an Azure storage account resource ID.
+type resourceID struct {
+	subscriptionID     string
+	resourceGroupName  string
+	storageAccountName string
+}
 
-	return Payload{
-		Config: cfg,
-		// All other fields will be nil until Loader is fully implemented
+var resourceIDPattern = regexp.MustCompile(
+	`^/subscriptions/([0-9a-fA-F-]+)/resourceGroups/([a-zA-Z0-9\-_()\.]+)/providers/Microsoft\.Storage/storageAccounts/([a-z0-9]+)$`,
+)
+
+func parseResourceID(raw string) (resourceID, error) {
+	match := resourceIDPattern.FindStringSubmatch(raw)
+	if len(match) != 4 {
+		return resourceID{}, fmt.Errorf("invalid storage account resource ID: %s", raw)
+	}
+	return resourceID{
+		subscriptionID:     match[1],
+		resourceGroupName:  match[2],
+		storageAccountName: match[3],
 	}, nil
+}
+
+// Well-known Azure Policy definition IDs
+const (
+	policyAllowedLocations    = "e56962a6-4747-49cd-b67b-bf8b01975c4c"
+	policyCustomerManagedKeys = "6fac406b-40ca-413b-bf8e-0bf964659c25"
+	policyKeyRotation         = "d8cf8476-a2ec-4916-896e-992351803c44"
+)
+
+// Loader is the SDK-compatible entrypoint.
+func Loader(cfg *config.Config) (any, error) {
+	return LoadWithOptions(cfg)
+}
+
+// LoadWithOptions is the testable entrypoint with functional options.
+func LoadWithOptions(cfg *config.Config, opts ...Option) (any, error) {
+	options := &loaderOptions{
+		credentialFactory: &defaultCredentialFactory{},
+	}
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	// Parse resource ID from config
+	rawResourceID := cfg.GetString("storageaccountresourceid")
+	if rawResourceID == "" {
+		return nil, fmt.Errorf("required config 'storageaccountresourceid' is not provided")
+	}
+
+	rid, err := parseResourceID(rawResourceID)
+	if err != nil {
+		return nil, err
+	}
+
+	payload := Payload{
+		Config:             cfg,
+		ResourceID:         rawResourceID,
+		SubscriptionID:     rid.subscriptionID,
+		ResourceGroupName:  rid.resourceGroupName,
+		StorageAccountName: rid.storageAccountName,
+	}
+
+	// Create clients if not injected
+	if options.accountsClient == nil || options.blobServicesClient == nil ||
+		options.diagnosticsClient == nil || options.defenderClient == nil ||
+		options.policyClient == nil {
+
+		cred, err := options.credentialFactory.NewDefaultCredential()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get Azure credential: %v", err)
+		}
+
+		if options.accountsClient == nil {
+			c, err := armstorage.NewAccountsClient(rid.subscriptionID, cred, nil)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create storage accounts client: %v", err)
+			}
+			options.accountsClient = c
+		}
+
+		if options.blobServicesClient == nil {
+			c, err := armstorage.NewBlobServicesClient(rid.subscriptionID, cred, nil)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create blob services client: %v", err)
+			}
+			options.blobServicesClient = c
+		}
+
+		if options.diagnosticsClient == nil {
+			factory, err := armmonitor.NewClientFactory(rid.subscriptionID, cred, nil)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create monitor client factory: %v", err)
+			}
+			options.diagnosticsClient = factory.NewDiagnosticSettingsClient()
+		}
+
+		if options.defenderClient == nil {
+			c, err := armsecurity.NewDefenderForStorageClient(cred, nil)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create defender client: %v", err)
+			}
+			options.defenderClient = c
+		}
+
+		if options.policyClient == nil {
+			factory, err := armpolicy.NewClientFactory(rid.subscriptionID, cred, nil)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create policy client factory: %v", err)
+			}
+			options.policyClient = factory.NewAssignmentsClient()
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Fetch storage account
+	payload.StorageAccount, payload.StorageAccountURI, err = fetchStorageAccount(
+		ctx, options.accountsClient, rid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch storage account: %v", err)
+	}
+
+	// Non-critical fetches: populate nil on failure
+	payload.BlobService = fetchBlobService(ctx, options.blobServicesClient, rid)
+	payload.Diagnostics = fetchDiagnostics(ctx, options.diagnosticsClient, rawResourceID)
+	payload.Security = fetchDefender(ctx, options.defenderClient, rawResourceID)
+	payload.Policies = fetchPolicies(ctx, options.policyClient, rid)
+
+	return payload, nil
+}
+
+func fetchStorageAccount(
+	ctx context.Context, client AccountsClient, rid resourceID,
+) (*StorageAccountData, string, error) {
+	// Try with GeoReplicationStats expand first
+	resp, err := client.GetProperties(ctx, rid.resourceGroupName, rid.storageAccountName,
+		&armstorage.AccountsClientGetPropertiesOptions{
+			Expand: to.Ptr(armstorage.StorageAccountExpandGeoReplicationStats),
+		})
+	if err != nil {
+		// Fallback without expand
+		resp, err = client.GetProperties(ctx, rid.resourceGroupName, rid.storageAccountName, nil)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+
+	props := resp.Account.Properties
+	if props == nil {
+		return nil, "", fmt.Errorf("storage account properties are nil")
+	}
+
+	sa := &StorageAccountData{
+		AllowSharedKeyAccess:  props.AllowSharedKeyAccess,
+		AllowBlobPublicAccess: props.AllowBlobPublicAccess,
+	}
+
+	// Public network access (enum -> string)
+	if props.PublicNetworkAccess != nil {
+		s := string(*props.PublicNetworkAccess)
+		sa.PublicNetworkAccess = &s
+	}
+
+	// Network rules
+	if props.NetworkRuleSet != nil {
+		nrs := &NetworkRuleSet{}
+		if props.NetworkRuleSet.DefaultAction != nil {
+			s := string(*props.NetworkRuleSet.DefaultAction)
+			nrs.DefaultAction = &s
+		}
+		for _, rule := range props.NetworkRuleSet.IPRules {
+			if rule.IPAddressOrRange != nil {
+				nrs.IPRules = append(nrs.IPRules, IPRule{IPAddressOrRange: rule.IPAddressOrRange})
+			}
+		}
+		sa.NetworkRuleSet = nrs
+	}
+
+	// Encryption
+	if props.Encryption != nil {
+		enc := &EncryptionData{}
+		if props.Encryption.KeySource != nil {
+			s := string(*props.Encryption.KeySource)
+			enc.KeySource = &s
+		}
+		if props.Encryption.Services != nil && props.Encryption.Services.Blob != nil {
+			enc.Services = &EncryptionServices{
+				Blob: &EncryptionService{
+					Enabled: props.Encryption.Services.Blob.Enabled,
+				},
+			}
+		}
+		sa.Encryption = enc
+	}
+
+	// SKU
+	if resp.Account.SKU != nil && resp.Account.SKU.Name != nil {
+		s := string(*resp.Account.SKU.Name)
+		sa.SKU = &SKUData{Name: &s}
+	}
+
+	// Geo-replication stats
+	if props.GeoReplicationStats != nil {
+		sa.GeoReplicationStats = &GeoReplicationStats{
+			LastSyncTime: props.GeoReplicationStats.LastSyncTime,
+		}
+	}
+
+	// Immutability
+	if props.ImmutableStorageWithVersioning != nil {
+		imm := &ImmutabilityData{
+			Enabled: props.ImmutableStorageWithVersioning.Enabled,
+		}
+		if props.ImmutableStorageWithVersioning.ImmutabilityPolicy != nil {
+			policy := &ImmutabilityPolicy{
+				ImmutabilityPeriodSinceCreationInDays: props.ImmutableStorageWithVersioning.ImmutabilityPolicy.ImmutabilityPeriodSinceCreationInDays,
+			}
+			if props.ImmutableStorageWithVersioning.ImmutabilityPolicy.State != nil {
+				s := string(*props.ImmutableStorageWithVersioning.ImmutabilityPolicy.State)
+				policy.State = &s
+			}
+			imm.ImmutabilityPolicy = policy
+		}
+		sa.ImmutableStorageWithVersioning = imm
+	}
+
+	// Endpoints
+	var uri string
+	if props.PrimaryEndpoints != nil && props.PrimaryEndpoints.Blob != nil {
+		uri = *props.PrimaryEndpoints.Blob
+		sa.PrimaryEndpoints = &EndpointsData{Blob: props.PrimaryEndpoints.Blob}
+	}
+
+	return sa, uri, nil
+}
+
+func fetchBlobService(
+	ctx context.Context, client BlobServicesClient, rid resourceID,
+) *BlobServiceData {
+	resp, err := client.GetServiceProperties(ctx, rid.resourceGroupName, rid.storageAccountName, nil)
+	if err != nil {
+		return nil
+	}
+
+	props := resp.BlobServiceProperties.BlobServiceProperties
+	if props == nil {
+		return nil
+	}
+
+	bs := &BlobServiceData{
+		IsVersioningEnabled: props.IsVersioningEnabled,
+	}
+
+	if props.ContainerDeleteRetentionPolicy != nil {
+		bs.ContainerDeleteRetentionPolicy = &DeleteRetentionPolicy{
+			Enabled:              props.ContainerDeleteRetentionPolicy.Enabled,
+			Days:                 props.ContainerDeleteRetentionPolicy.Days,
+			AllowPermanentDelete: props.ContainerDeleteRetentionPolicy.AllowPermanentDelete,
+		}
+	}
+
+	if props.DeleteRetentionPolicy != nil {
+		bs.DeleteRetentionPolicy = &DeleteRetentionPolicy{
+			Enabled:              props.DeleteRetentionPolicy.Enabled,
+			Days:                 props.DeleteRetentionPolicy.Days,
+			AllowPermanentDelete: props.DeleteRetentionPolicy.AllowPermanentDelete,
+		}
+	}
+
+	return bs
+}
+
+func fetchDiagnostics(
+	ctx context.Context, client DiagnosticsClient, storageAccountResourceID string,
+) *DiagnosticsData {
+	blobResourceID := storageAccountResourceID + "/blobServices/default"
+	pager := client.NewListPager(blobResourceID, nil)
+
+	for pager.More() {
+		page, err := pager.NextPage(ctx)
+		if err != nil {
+			return nil
+		}
+
+		for _, setting := range page.Value {
+			if setting.Properties == nil || setting.Properties.WorkspaceID == nil || *setting.Properties.WorkspaceID == "" {
+				continue
+			}
+
+			readLogged, writeLogged, deleteLogged := false, false, false
+			for _, logSetting := range setting.Properties.Logs {
+				if logSetting.Enabled == nil || !*logSetting.Enabled {
+					continue
+				}
+				if logSetting.CategoryGroup != nil {
+					switch *logSetting.CategoryGroup {
+					case "audit", "allLogs":
+						readLogged, writeLogged, deleteLogged = true, true, true
+					}
+				} else if logSetting.Category != nil {
+					switch *logSetting.Category {
+					case "StorageRead":
+						readLogged = true
+					case "StorageWrite":
+						writeLogged = true
+					case "StorageDelete":
+						deleteLogged = true
+					}
+				}
+			}
+
+			if readLogged && writeLogged && deleteLogged {
+				allLogged := true
+				workspaceID := *setting.Properties.WorkspaceID
+
+				// Extract workspace name from resource ID
+				workspaceName := workspaceID
+				re := regexp.MustCompile(`/workspaces/(.+)$`)
+				if match := re.FindStringSubmatch(workspaceID); len(match) > 1 {
+					workspaceName = match[1]
+				}
+
+				return &DiagnosticsData{
+					StorageBlobLogsEnabled:    &allLogged,
+					LogAnalyticsWorkspaceID:   &workspaceID,
+					LogAnalyticsWorkspaceName: &workspaceName,
+				}
+			}
+		}
+	}
+
+	notLogged := false
+	return &DiagnosticsData{
+		StorageBlobLogsEnabled: &notLogged,
+	}
+}
+
+func fetchDefender(
+	ctx context.Context, client DefenderClient, storageAccountResourceID string,
+) *SecurityData {
+	resp, err := client.Get(ctx, storageAccountResourceID, armsecurity.SettingNameCurrent, nil)
+	if err != nil {
+		return nil
+	}
+
+	if resp.Properties == nil {
+		return nil
+	}
+
+	return &SecurityData{
+		DefenderForStorage: &DefenderForStorageData{
+			IsEnabled: resp.Properties.IsEnabled,
+		},
+	}
+}
+
+func fetchPolicies(
+	ctx context.Context, client PolicyClient, rid resourceID,
+) *PoliciesData {
+	pager := client.NewListForResourcePager(
+		rid.resourceGroupName,
+		"Microsoft.Storage",
+		"",
+		"storageAccounts",
+		rid.storageAccountName,
+		nil,
+	)
+
+	policies := &PoliciesData{}
+
+	for pager.More() {
+		page, err := pager.NextPage(ctx)
+		if err != nil {
+			return nil
+		}
+
+		for _, assignment := range page.Value {
+			if assignment.Properties == nil || assignment.Properties.PolicyDefinitionID == nil {
+				continue
+			}
+
+			defID := *assignment.Properties.PolicyDefinitionID
+
+			var enforcementMode *string
+			if assignment.Properties.EnforcementMode != nil {
+				s := string(*assignment.Properties.EnforcementMode)
+				enforcementMode = &s
+			}
+
+			if strings.Contains(defID, policyAllowedLocations) {
+				al := &AllowedLocationsPolicy{
+					Assigned:        true,
+					EnforcementMode: enforcementMode,
+				}
+				if assignment.Properties.Parameters != nil {
+					if locParam, ok := assignment.Properties.Parameters["listOfAllowedLocations"]; ok && locParam.Value != nil {
+						if locations, ok := locParam.Value.([]interface{}); ok {
+							for _, loc := range locations {
+								if s, ok := loc.(string); ok {
+									al.AllowedLocations = append(al.AllowedLocations, s)
+								}
+							}
+						}
+					}
+				}
+				policies.AllowedLocations = al
+			}
+
+			if strings.Contains(defID, policyCustomerManagedKeys) {
+				policies.CustomerManagedKeys = &CustomerManagedKeysPolicy{
+					Assigned:        true,
+					EnforcementMode: enforcementMode,
+				}
+			}
+
+			if strings.Contains(defID, policyKeyRotation) {
+				kr := &KeyRotationPolicy{
+					Assigned:        true,
+					EnforcementMode: enforcementMode,
+				}
+				if assignment.Properties.Parameters != nil {
+					if daysParam, ok := assignment.Properties.Parameters["maximumDaysToRotate"]; ok && daysParam.Value != nil {
+						if days, ok := daysParam.Value.(float64); ok {
+							d := int(days)
+							kr.MaximumDaysToRotate = &d
+						}
+					}
+				}
+				policies.KeyRotation = kr
+			}
+		}
+	}
+
+	return policies
 }
