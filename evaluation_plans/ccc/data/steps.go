@@ -8,7 +8,7 @@ import (
 
 	"github.com/gemaraproj/go-gemara"
 
-	"github.com/eddie-knight/plugin-finos-azure_blob_storage-plugin/evaluation_plans/reusable_steps"
+	"github.com/revanite-io/pvtr-azure-blob-storage/evaluation_plans/reusable_steps"
 )
 
 // SharedKeyAccessDisabled verifies that shared key access is disabled on the storage account.

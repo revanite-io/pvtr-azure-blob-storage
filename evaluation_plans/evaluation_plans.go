@@ -1,8 +1,8 @@
 package evaluation_plans
 
 import (
-	"github.com/eddie-knight/plugin-finos-azure_blob_storage-plugin/evaluation_plans/ccc/data"
-	"github.com/eddie-knight/plugin-finos-azure_blob_storage-plugin/evaluation_plans/reusable_steps"
+	"github.com/revanite-io/pvtr-azure-blob-storage/evaluation_plans/ccc/data"
+	"github.com/revanite-io/pvtr-azure-blob-storage/evaluation_plans/reusable_steps"
 	"github.com/gemaraproj/go-gemara"
 )
 

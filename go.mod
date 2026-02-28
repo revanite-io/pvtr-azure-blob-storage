@@ -1,4 +1,4 @@
-module github.com/eddie-knight/plugin-finos-azure_blob_storage-plugin
+module github.com/revanite-io/pvtr-azure-blob-storage
 
 go 1.25.1
 

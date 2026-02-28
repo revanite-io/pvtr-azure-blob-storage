@@ -5,7 +5,7 @@ import (
 
 	"github.com/gemaraproj/go-gemara"
 
-	"github.com/eddie-knight/plugin-finos-azure_blob_storage-plugin/data"
+	"github.com/revanite-io/pvtr-azure-blob-storage/data"
 )
 
 // VerifyPayload typecasts the payload so that it can be used elsewhere in a step.

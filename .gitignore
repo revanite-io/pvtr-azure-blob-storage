@@ -37,6 +37,8 @@ go.work.sum
 .DS_Store
 .vscode
 
+# AI
+.claude/
 
 # project overrides
 !test_output/**/*.log

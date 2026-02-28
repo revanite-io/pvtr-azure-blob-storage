@@ -7,8 +7,8 @@ import (
 
 	"os"
 
-	"github.com/eddie-knight/plugin-finos-azure_blob_storage-plugin/data"
-	"github.com/eddie-knight/plugin-finos-azure_blob_storage-plugin/evaluation_plans"
+	"github.com/revanite-io/pvtr-azure-blob-storage/data"
+	"github.com/revanite-io/pvtr-azure-blob-storage/evaluation_plans"
 
 	"github.com/privateerproj/privateer-sdk/command"
 	"github.com/privateerproj/privateer-sdk/pluginkit"
@@ -40,7 +40,7 @@ func main() {
 	orchestrator := pluginkit.EvaluationOrchestrator{
 		PluginName:    PluginName,
 		PluginVersion: Version,
-		PluginUri:     "github.com/eddie-knight/finos-azure_blob_storage-plugin",
+		PluginUri:     "github.com/revanite-io/pvtr-azure-blob-storage",
 	}
 	orchestrator.AddLoader(data.Loader)
 
