@@ -25,7 +25,7 @@ var (
 	BuiltAt = ""
 
 	PluginName   = "pvtr-azure-blob-storage"
-	RequiredVars = []string{}
+	RequiredVars = []string{"storageaccountresourceid"}
 
 	//go:embed data/catalogs
 	files   embed.FS

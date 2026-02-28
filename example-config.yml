@@ -20,5 +20,4 @@ services:
         - tlp-clear
         - tlp-green
     vars:
-      myvar1: value1
-      myVar2: value2
+      storageaccountresourceid: /subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.Storage/storageAccounts/<account-name>
