@@ -51,7 +51,7 @@ func main() {
 	}
 
 	orchestrator.AddRequiredVars(RequiredVars)
-	err = orchestrator.AddEvaluationSuite("", nil, evaluation_plans.CCC)
+	err = orchestrator.AddEvaluationSuite("CCC.ObjStor", nil, evaluation_plans.CCC)
 	if err != nil {
 		fmt.Printf("Error adding evaluation suite: %v\n", err)
 		os.Exit(1)

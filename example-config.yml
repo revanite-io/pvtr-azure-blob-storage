@@ -13,7 +13,7 @@ services:
 
     # The policy section may be set at the top level if assessing multiple services via privateer
     policy:
-      catalogs: ["CCC"] # this is the first catalog the plugin is built for, but more may be developed later
+      catalogs: ["CCC.ObjStor"] # this is the first catalog the plugin is built for, but more may be developed later
       applicability:
         - tlp-amber
         - tlp-red
