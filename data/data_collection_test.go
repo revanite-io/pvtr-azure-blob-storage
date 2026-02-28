@@ -12,7 +12,7 @@ import (
 	"github.com/privateerproj/privateer-sdk/config"
 )
 
-func testConfig(vars map[string]interface{}) *config.Config {
+func testConfig(vars map[string]any) *config.Config {
 	return &config.Config{Vars: vars}
 }
 
@@ -75,7 +75,7 @@ func TestParseResourceID(t *testing.T) {
 }
 
 func TestLoadWithOptions_MissingResourceID(t *testing.T) {
-	cfg := testConfig(map[string]interface{}{})
+	cfg := testConfig(map[string]any{})
 	_, err := LoadWithOptions(cfg, allMockOptions()...)
 	if err == nil {
 		t.Fatal("expected error for missing resource ID")
@@ -83,7 +83,7 @@ func TestLoadWithOptions_MissingResourceID(t *testing.T) {
 }
 
 func TestLoadWithOptions_InvalidResourceID(t *testing.T) {
-	cfg := testConfig(map[string]interface{}{"storageaccountresourceid": "not-a-resource-id"})
+	cfg := testConfig(map[string]any{"storageaccountresourceid": "not-a-resource-id"})
 	_, err := LoadWithOptions(cfg, allMockOptions()...)
 	if err == nil {
 		t.Fatal("expected error for invalid resource ID")
@@ -91,7 +91,7 @@ func TestLoadWithOptions_InvalidResourceID(t *testing.T) {
 }
 
 func TestLoadWithOptions_StorageAccountFetchFailure(t *testing.T) {
-	cfg := testConfig(map[string]interface{}{"storageaccountresourceid": validResourceID})
+	cfg := testConfig(map[string]any{"storageaccountresourceid": validResourceID})
 	opts := []Option{
 		WithCredentialFactory(&mockCredentialFactory{}),
 		WithAccountsClient(&mockAccountsClient{err: fmt.Errorf("network error")}),
@@ -107,7 +107,7 @@ func TestLoadWithOptions_StorageAccountFetchFailure(t *testing.T) {
 }
 
 func TestLoadWithOptions_GeoReplicationFallback(t *testing.T) {
-	cfg := testConfig(map[string]interface{}{"storageaccountresourceid": validResourceID})
+	cfg := testConfig(map[string]any{"storageaccountresourceid": validResourceID})
 	opts := []Option{
 		WithCredentialFactory(&mockCredentialFactory{}),
 		WithAccountsClient(&mockAccountsClient{
@@ -130,7 +130,7 @@ func TestLoadWithOptions_GeoReplicationFallback(t *testing.T) {
 }
 
 func TestLoadWithOptions_BlobServiceFailureNonFatal(t *testing.T) {
-	cfg := testConfig(map[string]interface{}{"storageaccountresourceid": validResourceID})
+	cfg := testConfig(map[string]any{"storageaccountresourceid": validResourceID})
 	opts := []Option{
 		WithCredentialFactory(&mockCredentialFactory{}),
 		WithAccountsClient(&mockAccountsClient{response: minimalAccountsResponse()}),
@@ -150,7 +150,7 @@ func TestLoadWithOptions_BlobServiceFailureNonFatal(t *testing.T) {
 }
 
 func TestLoadWithOptions_FullPayload(t *testing.T) {
-	cfg := testConfig(map[string]interface{}{"storageaccountresourceid": validResourceID})
+	cfg := testConfig(map[string]any{"storageaccountresourceid": validResourceID})
 
 	accountResp := armstorage.AccountsClientGetPropertiesResponse{
 		Account: armstorage.Account{
@@ -228,7 +228,7 @@ func TestLoadWithOptions_FullPayload(t *testing.T) {
 							PolicyDefinitionID: ptr("/providers/Microsoft.Authorization/policyDefinitions/e56962a6-4747-49cd-b67b-bf8b01975c4c"),
 							EnforcementMode:    to.Ptr(armpolicy.EnforcementModeDefault),
 							Parameters: map[string]*armpolicy.ParameterValuesValue{
-								"listOfAllowedLocations": {Value: []interface{}{"eastus", "westus2"}},
+								"listOfAllowedLocations": {Value: []any{"eastus", "westus2"}},
 							},
 						},
 					},

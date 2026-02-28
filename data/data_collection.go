@@ -331,7 +331,7 @@ func fetchStorageAccount(
 		}
 	}
 
-	props := resp.Account.Properties
+	props := resp.Properties
 	if props == nil {
 		return nil, "", fmt.Errorf("storage account properties are nil")
 	}
@@ -380,8 +380,8 @@ func fetchStorageAccount(
 	}
 
 	// SKU
-	if resp.Account.SKU != nil && resp.Account.SKU.Name != nil {
-		s := string(*resp.Account.SKU.Name)
+	if resp.SKU != nil && resp.SKU.Name != nil {
+		s := string(*resp.SKU.Name)
 		sa.SKU = &SKUData{Name: &s}
 	}
 
@@ -580,7 +580,7 @@ func fetchPolicies(
 				}
 				if assignment.Properties.Parameters != nil {
 					if locParam, ok := assignment.Properties.Parameters["listOfAllowedLocations"]; ok && locParam.Value != nil {
-						if locations, ok := locParam.Value.([]interface{}); ok {
+						if locations, ok := locParam.Value.([]any); ok {
 							for _, loc := range locations {
 								if s, ok := loc.(string); ok {
 									al.AllowedLocations = append(al.AllowedLocations, s)
