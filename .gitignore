@@ -10,6 +10,8 @@
 
 # App generated
 generated_plugins/
+pvtr-azure-blob-storage
+evaluation_results/
 
 # Log files
 *.log
