@@ -37,6 +37,14 @@ go.work.sum
 .DS_Store
 .vscode
 
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+*.tfplan
+terraform.tfvars
+
 # AI
 .claude/
 
