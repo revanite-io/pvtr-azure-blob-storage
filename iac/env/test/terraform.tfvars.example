@@ -1,0 +1,9 @@
+subscription_id = "00000000-0000-0000-0000-000000000000"
+allowed_ips     = ["203.0.113.1"]
+
+# Optional overrides:
+# location             = "centralus"
+# resource_group_name  = "rg-pvtr-abs-test"
+# storage_account_name = "pvtrabstest"
+# immutability_state   = "Locked"   # WARNING: irreversible, prevents deletion
+# allowed_locations    = ["centralus", "eastus2"]

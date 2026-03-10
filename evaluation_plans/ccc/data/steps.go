@@ -8,7 +8,7 @@ import (
 
 	"github.com/gemaraproj/go-gemara"
 
-	"github.com/eddie-knight/plugin-finos-azure_blob_storage-plugin/evaluation_plans/reusable_steps"
+	"github.com/revanite-io/pvtr-azure-blob-storage/evaluation_plans/reusable_steps"
 )
 
 // SharedKeyAccessDisabled verifies that shared key access is disabled on the storage account.
@@ -61,7 +61,7 @@ func ConfirmHttpRequestFails(payloadData any) (result gemara.Result, message str
 		// HTTP request failed (expected) - this is good
 		return gemara.Passed, "HTTP requests are rejected (connection failed as expected)", confidence
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// If we got a response, HTTP is allowed (bad)
 	return gemara.Failed, "HTTP requests are accepted (should be rejected)", confidence
@@ -94,7 +94,7 @@ func CheckTlsVersion(payloadData any) (result gemara.Result, message string, con
 	if err != nil {
 		return gemara.Unknown, "Failed to connect to storage account endpoint: " + err.Error(), confidence
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.TLS == nil {
 		return gemara.Failed, "Connection did not use TLS", confidence
@@ -141,7 +141,7 @@ func ConfirmOutdatedProtocolRequestsFail(payloadData any) (result gemara.Result,
 
 	resp, err := tls10Client.Get(payload.StorageAccountURI)
 	if err == nil {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return gemara.Failed, "TLS 1.0 requests are accepted (should be rejected)", confidence
 	}
 
@@ -159,7 +159,7 @@ func ConfirmOutdatedProtocolRequestsFail(payloadData any) (result gemara.Result,
 
 	resp, err = tls11Client.Get(payload.StorageAccountURI)
 	if err == nil {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return gemara.Failed, "TLS 1.1 requests are accepted (should be rejected)", confidence
 	}
 

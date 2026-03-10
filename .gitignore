@@ -10,6 +10,8 @@
 
 # App generated
 generated_plugins/
+pvtr-azure-blob-storage
+evaluation_results/
 
 # Log files
 *.log
@@ -37,6 +39,16 @@ go.work.sum
 .DS_Store
 .vscode
 
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+*.tfplan
+terraform.tfvars
+
+# AI
+.claude/
 
 # project overrides
 !test_output/**/*.log
