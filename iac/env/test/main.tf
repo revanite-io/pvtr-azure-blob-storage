@@ -17,7 +17,7 @@ provider "azurerm" {
 }
 
 module "pvtr_azure_blob_storage" {
-  source = "../../terraform/modules/pvtr-azure-blob-storage"
+  source = "git::https://github.com/revanite-io/pvtr-terraform.git//modules/pvtr-azure-blob-storage?ref=9f8ca38296b4ad4b264b997ff6427285ca7aafdb" # v0.1.0
 
   location             = var.location
   resource_group_name  = var.resource_group_name
