@@ -9,7 +9,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armpolicy v1.0.0
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/security/armsecurity v0.14.0
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage v1.8.1
-	github.com/gemaraproj/go-gemara v0.2.0
+	github.com/gemaraproj/go-gemara v0.0.2
 	github.com/privateerproj/privateer-sdk v1.22.1
 )
 
