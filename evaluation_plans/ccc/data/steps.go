@@ -503,51 +503,6 @@ func VersionsRetainedOnDeletion(payloadData any) (result gemara.Result, message 
 	return gemara.Passed, "Versioning is enabled. Azure retains all versions when a blob is deleted", gemara.High
 }
 
-// LoggingToLogAnalyticsConfigured verifies that access logs are stored in Log Analytics, separate from the storage account.
-func LoggingToLogAnalyticsConfigured(payloadData any) (result gemara.Result, message string, confidence gemara.ConfidenceLevel) {
-	payload, message := reusable_steps.VerifyPayload(payloadData)
-	if message != "" {
-		return gemara.Unknown, message, confidence
-	}
-
-	if payload.Diagnostics == nil {
-		return gemara.Unknown, "Diagnostics data not available", confidence
-	}
-
-	if payload.Diagnostics.StorageBlobLogsEnabled == nil {
-		return gemara.Unknown, "Storage blob logs enabled property not available", confidence
-	}
-
-	if !*payload.Diagnostics.StorageBlobLogsEnabled {
-		return gemara.Failed, "Logging to Log Analytics is not configured for blob storage", confidence
-	}
-
-	if payload.Diagnostics.LogAnalyticsWorkspaceID == nil || *payload.Diagnostics.LogAnalyticsWorkspaceID == "" {
-		return gemara.Failed, "Log Analytics workspace is not configured", confidence
-	}
-
-	return gemara.Passed, "Logging to Log Analytics is configured for blob storage", confidence
-}
-
-// LogBucketHighestSensitivityLevel verifies that buckets storing access logs are classified at the highest sensitivity level.
-func LogBucketHighestSensitivityLevel(payloadData any) (result gemara.Result, message string, confidence gemara.ConfidenceLevel) {
-	payload, message := reusable_steps.VerifyPayload(payloadData)
-	if message != "" {
-		return gemara.Unknown, message, confidence
-	}
-
-	// Check if logging to Log Analytics is configured (logs are stored there, not in buckets)
-	if payload.Diagnostics != nil && payload.Diagnostics.StorageBlobLogsEnabled != nil && *payload.Diagnostics.StorageBlobLogsEnabled {
-		// Logs are stored in Log Analytics, not in storage buckets.
-		// This control applies when logs are stored in object storage buckets —
-		// since they aren't, the requirement is not applicable.
-		return gemara.NotApplicable, "Access logs are stored in Log Analytics, not in storage buckets. Bucket sensitivity classification is not applicable", gemara.High
-	}
-
-	// Logging is not configured to Log Analytics — cannot determine where logs go
-	return gemara.NeedsReview, "Unable to determine log storage destination. If logs are stored in storage buckets, they must be classified at the highest sensitivity level", confidence
-}
-
 // MfaDeletionSupported verifies that the service supports MFA requirement for object deletion.
 func MfaDeletionSupported(payloadData any) (result gemara.Result, message string, confidence gemara.ConfidenceLevel) {
 	_, message = reusable_steps.VerifyPayload(payloadData)
@@ -851,33 +806,3 @@ func ReplicationToUntrustedPrevented(payloadData any) (result gemara.Result, mes
 	return gemara.Passed, "Object replication outside of the network access enabled on the Storage Account is always blocked on Azure Storage Accounts", confidence
 }
 
-// CustomerManagedKeysUsed verifies that customer-managed encryption keys are used and properly managed.
-func CustomerManagedKeysUsed(payloadData any) (result gemara.Result, message string, confidence gemara.ConfidenceLevel) {
-	payload, message := reusable_steps.VerifyPayload(payloadData)
-	if message != "" {
-		return gemara.Unknown, message, confidence
-	}
-
-	if payload.Policies == nil {
-		return gemara.Unknown, "Policies data not available", confidence
-	}
-
-	if payload.Policies.CustomerManagedKeys == nil {
-		return gemara.Unknown, "Customer-managed keys policy data not available", confidence
-	}
-
-	if !payload.Policies.CustomerManagedKeys.Assigned {
-		return gemara.Failed, "Azure Policy requiring customer-managed keys is not assigned", confidence
-	}
-
-	if payload.Policies.CustomerManagedKeys.EnforcementMode != nil && *payload.Policies.CustomerManagedKeys.EnforcementMode == "DoNotEnforce" {
-		return gemara.Failed, "Azure Policy requiring customer-managed keys is assigned but enforcement mode is set to DoNotEnforce", confidence
-	}
-
-	// Also check if key rotation policy is assigned (optional but recommended)
-	if payload.Policies.KeyRotation != nil && payload.Policies.KeyRotation.Assigned {
-		return gemara.Passed, "Azure Policy requiring customer-managed keys is assigned and enforced, and key rotation policy is also configured", confidence
-	}
-
-	return gemara.Passed, "Azure Policy requiring customer-managed keys is assigned and enforced", confidence
-}

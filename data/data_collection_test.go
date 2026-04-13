@@ -349,12 +349,6 @@ func TestLoadWithOptions_FullPayload(t *testing.T) {
 							},
 						},
 					},
-					{
-						Properties: &armpolicy.AssignmentProperties{
-							PolicyDefinitionID: ptr("/providers/Microsoft.Authorization/policyDefinitions/6fac406b-40ca-413b-bf8e-0bf964659c25"),
-							EnforcementMode:    to.Ptr(armpolicy.EnforcementModeDefault),
-						},
-					},
 				},
 			},
 		},
@@ -425,8 +419,5 @@ func TestLoadWithOptions_FullPayload(t *testing.T) {
 	}
 	if len(p.Policies.AllowedLocations.AllowedLocations) != 2 {
 		t.Errorf("AllowedLocations count = %d", len(p.Policies.AllowedLocations.AllowedLocations))
-	}
-	if p.Policies.CustomerManagedKeys == nil || !p.Policies.CustomerManagedKeys.Assigned {
-		t.Error("CustomerManagedKeys should be assigned")
 	}
 }

@@ -160,9 +160,7 @@ type DefenderForStorageData struct {
 
 // PoliciesData contains Azure Policy assignments
 type PoliciesData struct {
-	AllowedLocations    *AllowedLocationsPolicy
-	CustomerManagedKeys *CustomerManagedKeysPolicy
-	KeyRotation         *KeyRotationPolicy
+	AllowedLocations *AllowedLocationsPolicy
 }
 
 // AllowedLocationsPolicy contains allowed locations policy information
@@ -170,19 +168,6 @@ type AllowedLocationsPolicy struct {
 	Assigned         bool
 	EnforcementMode  *string
 	AllowedLocations []string
-}
-
-// CustomerManagedKeysPolicy contains customer-managed keys policy information
-type CustomerManagedKeysPolicy struct {
-	Assigned        bool
-	EnforcementMode *string
-}
-
-// KeyRotationPolicy contains key rotation policy information
-type KeyRotationPolicy struct {
-	Assigned            bool
-	EnforcementMode     *string
-	MaximumDaysToRotate *int
 }
 
 // resourceID holds parsed components of an Azure storage account resource ID.
@@ -210,9 +195,7 @@ func parseResourceID(raw string) (resourceID, error) {
 
 // Well-known Azure Policy definition IDs
 const (
-	policyAllowedLocations    = "e56962a6-4747-49cd-b67b-bf8b01975c4c"
-	policyCustomerManagedKeys = "6fac406b-40ca-413b-bf8e-0bf964659c25"
-	policyKeyRotation         = "d8cf8476-a2ec-4916-896e-992351803c44"
+	policyAllowedLocations = "e56962a6-4747-49cd-b67b-bf8b01975c4c"
 )
 
 // Loader is the SDK-compatible entrypoint.
@@ -631,29 +614,6 @@ func fetchPolicies(
 					}
 				}
 				policies.AllowedLocations = al
-			}
-
-			if strings.Contains(defID, policyCustomerManagedKeys) {
-				policies.CustomerManagedKeys = &CustomerManagedKeysPolicy{
-					Assigned:        true,
-					EnforcementMode: enforcementMode,
-				}
-			}
-
-			if strings.Contains(defID, policyKeyRotation) {
-				kr := &KeyRotationPolicy{
-					Assigned:        true,
-					EnforcementMode: enforcementMode,
-				}
-				if assignment.Properties.Parameters != nil {
-					if daysParam, ok := assignment.Properties.Parameters["maximumDaysToRotate"]; ok && daysParam.Value != nil {
-						if days, ok := daysParam.Value.(float64); ok {
-							d := int(days)
-							kr.MaximumDaysToRotate = &d
-						}
-					}
-				}
-				policies.KeyRotation = kr
 			}
 		}
 	}

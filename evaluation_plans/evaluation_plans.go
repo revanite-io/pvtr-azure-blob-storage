@@ -104,19 +104,6 @@ var (
 			*/
 			data.VersionsRetainedOnDeletion,
 		},
-		"CCC.ObjStor.CN06.AR01": {
-			/* When an object storage bucket is accessed, the service MUST store
-			access logs in a separate data store.
-			*/
-			data.LoggingToLogAnalyticsConfigured,
-		},
-		"CCC.ObjStor.CN06.AR02": {
-			/* When an object storage bucket stores access logs for other object
-			storage buckets, the bucket MUST be classified as the highest
-			possible sensitivity level.
-			*/
-			data.LogBucketHighestSensitivityLevel,
-		},
 		"CCC.ObjStor.CN07.AR01": {
 			/* The object storage service MUST support a configuration option that
 			requires MFA to be successfully completed before any object deletion
@@ -184,9 +171,6 @@ var (
 		},
 		"CCC.Core.CN10": {
 			data.ReplicationToUntrustedPrevented,
-		},
-		"CCC.Core.CN11": {
-			data.CustomerManagedKeysUsed,
 		},
 	}
 )
