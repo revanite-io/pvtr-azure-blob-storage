@@ -5,7 +5,7 @@ metadata:
   author:
     id: ""
     name: ""
-    type: 0
+    type: Software
 controls:
   - id: CCC.ObjStor.CN01
     title: Prevent Requests to Buckets or Objects with Untrusted KMS Keys

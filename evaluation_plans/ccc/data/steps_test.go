@@ -589,7 +589,7 @@ func TestDeletionPreventedForRetentionPolicy(t *testing.T) {
 			wantResult: gemara.Passed,
 		},
 		{
-			name: "immutability enabled but policy unlocked returns NeedsReview",
+			name: "immutability enabled but policy unlocked returns Passed with medium confidence",
 			payload: d.Payload{
 				StorageAccount: &d.StorageAccountData{
 					ImmutableStorageWithVersioning: &d.ImmutabilityData{
@@ -600,7 +600,7 @@ func TestDeletionPreventedForRetentionPolicy(t *testing.T) {
 					},
 				},
 			},
-			wantResult: gemara.NeedsReview,
+			wantResult: gemara.Passed,
 		},
 		{
 			name: "immutability disabled returns Failed",
@@ -736,13 +736,13 @@ func TestNewVersionOnModification(t *testing.T) {
 		wantResult gemara.Result
 	}{
 		{
-			name: "versioning enabled returns NeedsReview",
+			name: "versioning enabled returns Passed with high confidence",
 			payload: d.Payload{
 				BlobService: &d.BlobServiceData{
 					IsVersioningEnabled: ptr(true),
 				},
 			},
-			wantResult: gemara.NeedsReview,
+			wantResult: gemara.Passed,
 		},
 		{
 			name: "versioning disabled returns Failed",
@@ -790,13 +790,13 @@ func TestPreviousVersionsRecoverable(t *testing.T) {
 		wantResult gemara.Result
 	}{
 		{
-			name: "versioning enabled returns NeedsReview",
+			name: "versioning enabled returns Passed with high confidence",
 			payload: d.Payload{
 				BlobService: &d.BlobServiceData{
 					IsVersioningEnabled: ptr(true),
 				},
 			},
-			wantResult: gemara.NeedsReview,
+			wantResult: gemara.Passed,
 		},
 		{
 			name: "versioning disabled returns Failed",
@@ -844,13 +844,13 @@ func TestVersionsRetainedOnDeletion(t *testing.T) {
 		wantResult gemara.Result
 	}{
 		{
-			name: "versioning enabled returns NeedsReview",
+			name: "versioning enabled returns Passed with high confidence",
 			payload: d.Payload{
 				BlobService: &d.BlobServiceData{
 					IsVersioningEnabled: ptr(true),
 				},
 			},
-			wantResult: gemara.NeedsReview,
+			wantResult: gemara.Passed,
 		},
 		{
 			name: "versioning disabled returns Failed",
@@ -1211,13 +1211,13 @@ func TestLogBucketHighestSensitivityLevel(t *testing.T) {
 		wantResult gemara.Result
 	}{
 		{
-			name: "logging enabled returns NeedsReview for Log Analytics path",
+			name: "logging enabled returns NotApplicable for Log Analytics path",
 			payload: d.Payload{
 				Diagnostics: &d.DiagnosticsData{
 					StorageBlobLogsEnabled: ptr(true),
 				},
 			},
-			wantResult: gemara.NeedsReview,
+			wantResult: gemara.NotApplicable,
 		},
 		{
 			name:       "nil Diagnostics returns NeedsReview for manual verification",
