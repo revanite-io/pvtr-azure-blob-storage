@@ -7,7 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/monitor/armmonitor"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armpolicy"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/security/armsecurity"
@@ -250,7 +253,7 @@ func LoadWithOptions(cfg *config.Config, opts ...Option) (any, error) {
 		options.diagnosticsClient == nil || options.defenderClient == nil ||
 		options.policyClient == nil {
 
-		cred, err := options.credentialFactory.NewDefaultCredential()
+		cred, err := getCredential(cfg, options)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get Azure credential: %v", err)
 		}
@@ -313,6 +316,44 @@ func LoadWithOptions(cfg *config.Config, opts ...Option) (any, error) {
 	payload.Policies = fetchPolicies(ctx, options.policyClient, rid)
 
 	return payload, nil
+}
+
+// staticTokenCredential implements azcore.TokenCredential with a fixed bearer token.
+type staticTokenCredential struct {
+	token     string
+	expiresOn time.Time
+}
+
+func (s *staticTokenCredential) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
+	return azcore.AccessToken{Token: s.token, ExpiresOn: s.expiresOn}, nil
+}
+
+// getCredential returns an azcore.TokenCredential based on config vars.
+// Priority: token (static bearer) > SP credentials > DefaultAzureCredential.
+func getCredential(cfg *config.Config, options *loaderOptions) (azcore.TokenCredential, error) {
+	if token := cfg.GetString("token"); token != "" {
+		return &staticTokenCredential{token: token, expiresOn: time.Now().Add(1 * time.Hour)}, nil
+	}
+
+	clientID := cfg.GetString("clientid")
+	clientSecret := cfg.GetString("clientsecret")
+	tenantID := cfg.GetString("tenantid")
+
+	spVarsPresent := 0
+	for _, v := range []string{clientID, clientSecret, tenantID} {
+		if v != "" {
+			spVarsPresent++
+		}
+	}
+	if spVarsPresent > 0 && spVarsPresent < 3 {
+		fmt.Println("WARNING: partial service principal config detected (need all of clientid, clientsecret, tenantid); falling back to DefaultAzureCredential")
+	}
+
+	if spVarsPresent == 3 {
+		return azidentity.NewClientSecretCredential(tenantID, clientID, clientSecret, nil)
+	}
+
+	return options.credentialFactory.NewDefaultCredential()
 }
 
 func fetchStorageAccount(

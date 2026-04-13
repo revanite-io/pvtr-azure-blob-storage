@@ -21,3 +21,17 @@ services:
         - tlp-green
     vars:
       storageaccountresourceid: /subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.Storage/storageAccounts/<account-name>
+      # Optional: Authentication configuration
+      # The plugin tries these in order: token > service principal > DefaultAzureCredential
+      #
+      # Option 1: Bearer token (short-lived, ~1 hour, for one-off runs)
+      # Generate via: az account get-access-token --resource https://management.azure.com --query accessToken -o tsv
+      # token: <bearer-token>
+      #
+      # Option 2: Service Principal (long-lived, for CI/automation)
+      # clientid: <application-client-id>        # Azure AD App Registration Application (client) ID
+      # clientsecret: <client-secret-value>      # Azure AD App Registration client secret value
+      # tenantid: <azure-ad-tenant-id>           # Azure AD tenant (directory) ID
+      #
+      # Option 3: DefaultAzureCredential (no config needed)
+      # Uses az login, managed identity, or AZURE_* environment variables automatically

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/monitor/armmonitor"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armpolicy"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/security/armsecurity"
@@ -14,6 +15,122 @@ import (
 
 func testConfig(vars map[string]any) *config.Config {
 	return &config.Config{Vars: vars}
+}
+
+func TestGetCredential_TokenPresent(t *testing.T) {
+	cfg := testConfig(map[string]any{
+		"token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.test",
+	})
+	options := &loaderOptions{
+		credentialFactory: &trackingCredentialFactory{},
+	}
+	cred, err := getCredential(cfg, options)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cred == nil {
+		t.Fatal("expected non-nil credential")
+	}
+	if _, ok := cred.(*staticTokenCredential); !ok {
+		t.Errorf("expected *staticTokenCredential, got %T", cred)
+	}
+	if options.credentialFactory.(*trackingCredentialFactory).called {
+		t.Error("default credential factory should not be called when token is present")
+	}
+}
+
+func TestGetCredential_TokenTakesPrecedenceOverSP(t *testing.T) {
+	cfg := testConfig(map[string]any{
+		"token":        "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.test",
+		"clientid":     "00000000-0000-0000-0000-000000000000",
+		"clientsecret": "test-secret-value",
+		"tenantid":     "00000000-0000-0000-0000-000000000001",
+	})
+	options := &loaderOptions{
+		credentialFactory: &mockCredentialFactory{},
+	}
+	cred, err := getCredential(cfg, options)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := cred.(*staticTokenCredential); !ok {
+		t.Errorf("expected token to take precedence, got %T", cred)
+	}
+}
+
+func TestGetCredential_AllSPVarsPresent(t *testing.T) {
+	cfg := testConfig(map[string]any{
+		"clientid":     "00000000-0000-0000-0000-000000000000",
+		"clientsecret": "test-secret-value",
+		"tenantid":     "00000000-0000-0000-0000-000000000001",
+	})
+	options := &loaderOptions{
+		credentialFactory: &mockCredentialFactory{},
+	}
+	cred, err := getCredential(cfg, options)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cred == nil {
+		t.Fatal("expected non-nil credential")
+	}
+	if _, ok := cred.(*azidentity.ClientSecretCredential); !ok {
+		t.Errorf("expected *azidentity.ClientSecretCredential, got %T", cred)
+	}
+}
+
+func TestGetCredential_PartialSPVars_FallsBackToDefault(t *testing.T) {
+	tests := []struct {
+		name string
+		vars map[string]any
+	}{
+		{
+			name: "only clientid",
+			vars: map[string]any{"clientid": "some-id"},
+		},
+		{
+			name: "clientid and tenantid but no secret",
+			vars: map[string]any{
+				"clientid": "some-id",
+				"tenantid": "some-tenant",
+			},
+		},
+		{
+			name: "only clientsecret",
+			vars: map[string]any{"clientsecret": "some-secret"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := testConfig(tt.vars)
+			factory := &trackingCredentialFactory{}
+			options := &loaderOptions{
+				credentialFactory: factory,
+			}
+			_, err := getCredential(cfg, options)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !factory.called {
+				t.Error("expected default credential factory to be called")
+			}
+		})
+	}
+}
+
+func TestGetCredential_NoSPVars_FallsBackToDefault(t *testing.T) {
+	cfg := testConfig(map[string]any{})
+	factory := &trackingCredentialFactory{}
+	options := &loaderOptions{
+		credentialFactory: factory,
+	}
+	_, err := getCredential(cfg, options)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !factory.called {
+		t.Error("expected default credential factory to be called")
+	}
 }
 
 func TestParseResourceID(t *testing.T) {

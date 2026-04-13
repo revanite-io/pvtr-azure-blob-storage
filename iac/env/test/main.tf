@@ -6,6 +6,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 4.0"
     }
+    azuread = {
+      source  = "hashicorp/azuread"
+      version = "~> 3.0"
+    }
   }
 }
 
@@ -14,6 +18,40 @@ provider "azurerm" {
   resource_provider_registrations = "none"
   storage_use_azuread             = true
   features {}
+}
+
+provider "azuread" {}
+
+data "azuread_client_config" "current" {}
+
+# Service principal for plugin authentication
+resource "azuread_application" "plugin" {
+  display_name = "pvtr-abs-test-sp"
+  owners       = [data.azuread_client_config.current.object_id]
+}
+
+resource "azuread_service_principal" "plugin" {
+  client_id = azuread_application.plugin.client_id
+  owners    = [data.azuread_client_config.current.object_id]
+}
+
+resource "azuread_service_principal_password" "plugin" {
+  service_principal_id = azuread_service_principal.plugin.id
+  end_date_relative    = "8760h" # 1 year
+}
+
+# Reader on the resource group (covers storage, diagnostics, policy reads)
+resource "azurerm_role_assignment" "plugin_reader" {
+  scope                = "/subscriptions/${var.subscription_id}/resourceGroups/${module.pvtr_azure_blob_storage.resource_group_name}"
+  role_definition_name = "Reader"
+  principal_id         = azuread_service_principal.plugin.object_id
+}
+
+# Security Reader on the subscription (covers Defender for Storage reads)
+resource "azurerm_role_assignment" "plugin_security_reader" {
+  scope                = "/subscriptions/${var.subscription_id}"
+  role_definition_name = "Security Reader"
+  principal_id         = azuread_service_principal.plugin.object_id
 }
 
 module "pvtr_azure_blob_storage" {

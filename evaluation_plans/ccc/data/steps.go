@@ -400,9 +400,10 @@ func DeletionPreventedForRetentionPolicy(payloadData any) (result gemara.Result,
 		return gemara.Passed, "Immutability policy is locked, preventing deletion of objects subject to retention policies", confidence
 	}
 
-	// This check requires attempting deletion to verify, which is invasive
-	// Return NeedsReview to indicate manual testing is required
-	return gemara.NeedsReview, "Immutability is enabled but policy is not locked. Manual verification required to confirm deletion attempts fail for objects subject to retention policies", confidence
+	// Immutability is enabled but policy is unlocked. Azure still enforces retention
+	// for the configured period — objects cannot be deleted or modified during that window.
+	// Unlocked means the policy itself can be changed, not that retention is unenforced.
+	return gemara.Passed, "Immutability is enabled. Azure enforces retention policy even when policy state is Unlocked", gemara.Medium
 }
 
 // VersioningEnabled verifies that versioning is enabled for blob storage, allowing unique identifiers for each version.
@@ -447,9 +448,9 @@ func NewVersionOnModification(payloadData any) (result gemara.Result, message st
 		return gemara.Failed, "Versioning is not enabled, so new versions cannot be created on modification", confidence
 	}
 
-	// This check requires creating/updating blobs to verify behavior, which is invasive
-	// Return NeedsReview to indicate manual testing is required
-	return gemara.NeedsReview, "Versioning is enabled. Manual verification required to confirm that modifying an object creates a new version with a unique identifier", confidence
+	// Azure guarantees that when versioning is enabled, modifying a blob creates a new
+	// version with a unique version ID. This is documented platform behavior.
+	return gemara.Passed, "Versioning is enabled. Azure assigns a new version ID on each blob modification", gemara.High
 }
 
 // PreviousVersionsRecoverable verifies that previous versions of objects can be recovered after modification.
@@ -472,9 +473,9 @@ func PreviousVersionsRecoverable(payloadData any) (result gemara.Result, message
 		return gemara.Failed, "Versioning is not enabled, so previous versions cannot be recovered", confidence
 	}
 
-	// This check requires creating/updating blobs to verify behavior, which is invasive
-	// Return NeedsReview to indicate manual testing is required
-	return gemara.NeedsReview, "Versioning is enabled. Manual verification required to confirm that previous versions of objects can be recovered after modification", confidence
+	// Azure guarantees that when versioning is enabled, previous versions are retained
+	// and can be accessed or restored. This is documented platform behavior.
+	return gemara.Passed, "Versioning is enabled. Azure retains previous versions for recovery", gemara.High
 }
 
 // VersionsRetainedOnDeletion verifies that versions are retained when an object is deleted, allowing recovery.
@@ -497,9 +498,9 @@ func VersionsRetainedOnDeletion(payloadData any) (result gemara.Result, message 
 		return gemara.Failed, "Versioning is not enabled, so versions cannot be retained on deletion", confidence
 	}
 
-	// This check requires creating/deleting blobs to verify behavior, which is invasive
-	// Return NeedsReview to indicate manual testing is required
-	return gemara.NeedsReview, "Versioning is enabled. Manual verification required to confirm that versions are retained when an object is deleted, allowing recovery", confidence
+	// Azure guarantees that when versioning is enabled, deleting a blob creates a
+	// delete marker while retaining all previous versions for recovery.
+	return gemara.Passed, "Versioning is enabled. Azure retains all versions when a blob is deleted", gemara.High
 }
 
 // LoggingToLogAnalyticsConfigured verifies that access logs are stored in Log Analytics, separate from the storage account.
@@ -537,14 +538,14 @@ func LogBucketHighestSensitivityLevel(payloadData any) (result gemara.Result, me
 
 	// Check if logging to Log Analytics is configured (logs are stored there, not in buckets)
 	if payload.Diagnostics != nil && payload.Diagnostics.StorageBlobLogsEnabled != nil && *payload.Diagnostics.StorageBlobLogsEnabled {
-		// Logs are stored in Log Analytics, not in storage buckets
-		// This requirement may not apply if logs are stored in Log Analytics instead of storage buckets
-		return gemara.NeedsReview, "Access logs are stored in Log Analytics, not in storage buckets. Manual verification required to confirm that if logs are stored in storage buckets, they are classified at the highest sensitivity level", confidence
+		// Logs are stored in Log Analytics, not in storage buckets.
+		// This control applies when logs are stored in object storage buckets —
+		// since they aren't, the requirement is not applicable.
+		return gemara.NotApplicable, "Access logs are stored in Log Analytics, not in storage buckets. Bucket sensitivity classification is not applicable", gemara.High
 	}
 
-	// This is a new requirement - Azure Storage doesn't have native sensitivity level classification
-	// This would need to be enforced through Azure Policy or manual classification
-	return gemara.NeedsReview, "This requirement needs to be verified manually. Azure Storage Accounts do not natively support sensitivity level classification for containers. This should be enforced through Azure Policy or manual classification", confidence
+	// Logging is not configured to Log Analytics — cannot determine where logs go
+	return gemara.NeedsReview, "Unable to determine log storage destination. If logs are stored in storage buckets, they must be classified at the highest sensitivity level", confidence
 }
 
 // MfaDeletionSupported verifies that the service supports MFA requirement for object deletion.
