@@ -1,6 +1,6 @@
 title: CCC Object Storage Controls
 metadata:
-    id: CCC.ObjStor.CN
+    id: CCC.ObjStor
     type: ControlCatalog
     gemara-version: v1.0.0
     version: v2026.04-rc4

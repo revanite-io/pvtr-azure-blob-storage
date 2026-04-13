@@ -37,7 +37,7 @@ resource "azuread_service_principal" "plugin" {
 
 resource "azuread_service_principal_password" "plugin" {
   service_principal_id = azuread_service_principal.plugin.id
-  end_date_relative    = "8760h" # 1 year
+  end_date             = timeadd(plantimestamp(), "8760h") # 1 year
 }
 
 # Reader on the resource group (covers storage, diagnostics, policy reads)
