@@ -21,6 +21,16 @@ func (f *mockCredentialFactory) NewDefaultCredential() (*azidentity.DefaultAzure
 	return nil, nil // never called when all clients are injected
 }
 
+// trackingCredentialFactory records whether NewDefaultCredential was called.
+type trackingCredentialFactory struct {
+	called bool
+}
+
+func (f *trackingCredentialFactory) NewDefaultCredential() (*azidentity.DefaultAzureCredential, error) {
+	f.called = true
+	return nil, nil
+}
+
 // mockAccountsClient satisfies AccountsClient for tests.
 type mockAccountsClient struct {
 	response    armstorage.AccountsClientGetPropertiesResponse
