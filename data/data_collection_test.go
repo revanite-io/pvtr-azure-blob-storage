@@ -311,18 +311,14 @@ func TestLoadWithOptions_FullPayload(t *testing.T) {
 		},
 	}
 
-	diagPages := []armmonitor.DiagnosticSettingsClientListResponse{
-		{
-			DiagnosticSettingsResourceCollection: armmonitor.DiagnosticSettingsResourceCollection{
-				Value: []*armmonitor.DiagnosticSettingsResource{
-					{
-						Properties: &armmonitor.DiagnosticSettings{
-							WorkspaceID: ptr("/subscriptions/sub/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/myworkspace"),
-							Logs: []*armmonitor.LogSettings{
-								{Enabled: ptr(true), CategoryGroup: ptr("allLogs")},
-							},
-						},
-					},
+	diagResp := armmonitor.ServiceDiagnosticSettingsClientGetResponse{
+		ServiceDiagnosticSettingsResource: armmonitor.ServiceDiagnosticSettingsResource{
+			Properties: &armmonitor.ServiceDiagnosticSettings{
+				WorkspaceID: ptr("/subscriptions/sub/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/myworkspace"),
+				Logs: []*armmonitor.LogSettings{
+					{Enabled: ptr(true), Category: ptr("StorageRead")},
+					{Enabled: ptr(true), Category: ptr("StorageWrite")},
+					{Enabled: ptr(true), Category: ptr("StorageDelete")},
 				},
 			},
 		},
@@ -358,7 +354,7 @@ func TestLoadWithOptions_FullPayload(t *testing.T) {
 		WithCredentialFactory(&mockCredentialFactory{}),
 		WithAccountsClient(&mockAccountsClient{response: accountResp}),
 		WithBlobServicesClient(&mockBlobServicesClient{response: blobResp}),
-		WithDiagnosticsClient(&mockDiagnosticsClient{pages: diagPages}),
+		WithDiagnosticsClient(&mockDiagnosticsClient{response: diagResp}),
 		WithDefenderClient(&mockDefenderClient{response: defenderResp}),
 		WithPolicyClient(&mockPolicyClient{pages: policyPages}),
 	}

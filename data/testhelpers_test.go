@@ -69,31 +69,16 @@ func (m *mockBlobServicesClient) GetServiceProperties(
 
 // mockDiagnosticsClient satisfies DiagnosticsClient for tests.
 type mockDiagnosticsClient struct {
-	pages []armmonitor.DiagnosticSettingsClientListResponse
-	err   error
+	response armmonitor.ServiceDiagnosticSettingsClientGetResponse
+	err      error
 }
 
-func (m *mockDiagnosticsClient) NewListPager(
+func (m *mockDiagnosticsClient) Get(
+	ctx context.Context,
 	resourceURI string,
-	options *armmonitor.DiagnosticSettingsClientListOptions,
-) *runtime.Pager[armmonitor.DiagnosticSettingsClientListResponse] {
-	idx := 0
-	return runtime.NewPager(runtime.PagingHandler[armmonitor.DiagnosticSettingsClientListResponse]{
-		More: func(resp armmonitor.DiagnosticSettingsClientListResponse) bool {
-			return idx < len(m.pages)
-		},
-		Fetcher: func(ctx context.Context, resp *armmonitor.DiagnosticSettingsClientListResponse) (armmonitor.DiagnosticSettingsClientListResponse, error) {
-			if m.err != nil {
-				return armmonitor.DiagnosticSettingsClientListResponse{}, m.err
-			}
-			if idx >= len(m.pages) {
-				return armmonitor.DiagnosticSettingsClientListResponse{}, nil
-			}
-			page := m.pages[idx]
-			idx++
-			return page, nil
-		},
-	})
+	options *armmonitor.ServiceDiagnosticSettingsClientGetOptions,
+) (armmonitor.ServiceDiagnosticSettingsClientGetResponse, error) {
+	return m.response, m.err
 }
 
 // mockDefenderClient satisfies DefenderClient for tests.
