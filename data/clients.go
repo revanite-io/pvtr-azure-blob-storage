@@ -31,12 +31,13 @@ type BlobServicesClient interface {
 	) (armstorage.BlobServicesClientGetServicePropertiesResponse, error)
 }
 
-// DiagnosticsClient abstracts armmonitor.DiagnosticSettingsClient for testing.
+// DiagnosticsClient abstracts armmonitor.ServiceDiagnosticSettingsClient for testing.
 type DiagnosticsClient interface {
-	NewListPager(
+	Get(
+		ctx context.Context,
 		resourceURI string,
-		options *armmonitor.DiagnosticSettingsClientListOptions,
-	) *runtime.Pager[armmonitor.DiagnosticSettingsClientListResponse]
+		options *armmonitor.ServiceDiagnosticSettingsClientGetOptions,
+	) (armmonitor.ServiceDiagnosticSettingsClientGetResponse, error)
 }
 
 // DefenderClient abstracts armsecurity.DefenderForStorageClient for testing.

@@ -262,7 +262,7 @@ func LoadWithOptions(cfg *config.Config, opts ...Option) (any, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to create monitor client factory: %v", err)
 			}
-			options.diagnosticsClient = factory.NewDiagnosticSettingsClient()
+			options.diagnosticsClient = factory.NewServiceDiagnosticSettingsClient()
 		}
 
 		if options.defenderClient == nil {
@@ -484,58 +484,50 @@ func fetchDiagnostics(
 	ctx context.Context, client DiagnosticsClient, storageAccountResourceID string,
 ) *DiagnosticsData {
 	blobResourceID := storageAccountResourceID + "/blobServices/default"
-	pager := client.NewListPager(blobResourceID, nil)
+	resp, err := client.Get(ctx, blobResourceID, nil)
+	if err != nil {
+		return nil
+	}
 
-	for pager.More() {
-		page, err := pager.NextPage(ctx)
-		if err != nil {
-			return nil
+	props := resp.Properties
+	if props == nil || props.WorkspaceID == nil || *props.WorkspaceID == "" {
+		notLogged := false
+		return &DiagnosticsData{
+			StorageBlobLogsEnabled: &notLogged,
+		}
+	}
+
+	readLogged, writeLogged, deleteLogged := false, false, false
+	for _, logSetting := range props.Logs {
+		if logSetting.Enabled == nil || !*logSetting.Enabled {
+			continue
+		}
+		if logSetting.Category != nil {
+			switch *logSetting.Category {
+			case "StorageRead":
+				readLogged = true
+			case "StorageWrite":
+				writeLogged = true
+			case "StorageDelete":
+				deleteLogged = true
+			}
+		}
+	}
+
+	if readLogged && writeLogged && deleteLogged {
+		allLogged := true
+		workspaceID := *props.WorkspaceID
+
+		workspaceName := workspaceID
+		re := regexp.MustCompile(`/workspaces/(.+)$`)
+		if match := re.FindStringSubmatch(workspaceID); len(match) > 1 {
+			workspaceName = match[1]
 		}
 
-		for _, setting := range page.Value {
-			if setting.Properties == nil || setting.Properties.WorkspaceID == nil || *setting.Properties.WorkspaceID == "" {
-				continue
-			}
-
-			readLogged, writeLogged, deleteLogged := false, false, false
-			for _, logSetting := range setting.Properties.Logs {
-				if logSetting.Enabled == nil || !*logSetting.Enabled {
-					continue
-				}
-				if logSetting.CategoryGroup != nil {
-					switch *logSetting.CategoryGroup {
-					case "audit", "allLogs":
-						readLogged, writeLogged, deleteLogged = true, true, true
-					}
-				} else if logSetting.Category != nil {
-					switch *logSetting.Category {
-					case "StorageRead":
-						readLogged = true
-					case "StorageWrite":
-						writeLogged = true
-					case "StorageDelete":
-						deleteLogged = true
-					}
-				}
-			}
-
-			if readLogged && writeLogged && deleteLogged {
-				allLogged := true
-				workspaceID := *setting.Properties.WorkspaceID
-
-				// Extract workspace name from resource ID
-				workspaceName := workspaceID
-				re := regexp.MustCompile(`/workspaces/(.+)$`)
-				if match := re.FindStringSubmatch(workspaceID); len(match) > 1 {
-					workspaceName = match[1]
-				}
-
-				return &DiagnosticsData{
-					StorageBlobLogsEnabled:    &allLogged,
-					LogAnalyticsWorkspaceID:   &workspaceID,
-					LogAnalyticsWorkspaceName: &workspaceName,
-				}
-			}
+		return &DiagnosticsData{
+			StorageBlobLogsEnabled:    &allLogged,
+			LogAnalyticsWorkspaceID:   &workspaceID,
+			LogAnalyticsWorkspaceName: &workspaceName,
 		}
 	}
 
