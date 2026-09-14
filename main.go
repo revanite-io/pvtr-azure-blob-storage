@@ -40,7 +40,12 @@ func main() {
 	orchestrator := pluginkit.EvaluationOrchestrator{
 		PluginName:    PluginName,
 		PluginVersion: Version,
-		PluginUri:     "github.com/revanite-io/pvtr-azure-blob-storage",
+		PluginUri:     "https://github.com/revanite-io/pvtr-azure-blob-storage",
+		Publisher:     "jmeridth",   // grc.store namespace: coordinate = jmeridth/pvtr-azure-blob-storage
+		License:       "Apache-2.0", // SPDX expression; required to publish
+		// The vendored CCC catalog's metadata.author.id is "FINOS-CCC", which
+		// doesn't match the lowercase grc.store namespace slug that owns it.
+		CatalogNamespaces: map[string]string{"CCC.ObjStor": "finos-ccc"},
 	}
 	orchestrator.AddLoader(data.Loader)
 
