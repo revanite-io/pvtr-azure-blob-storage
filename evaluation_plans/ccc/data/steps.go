@@ -167,6 +167,29 @@ func ConfirmOutdatedProtocolRequestsFail(payloadData any) (result gemara.Result,
 	return gemara.Passed, "TLS 1.0 and TLS 1.1 requests are rejected as expected", confidence
 }
 
+// SftpSshV2Enforced checks whether the storage account exposes an SSH port at
+// all. Blob Storage only speaks SSH via its optional SFTP endpoint, so when
+// SFTP is disabled (or unset, the Azure default) the requirement does not
+// apply. When SFTP is enabled, no automated check verifies the negotiated
+// protocol version yet, so the handshake must be confirmed manually.
+func SftpSshV2Enforced(payloadData any) (result gemara.Result, message string, confidence gemara.ConfidenceLevel) {
+	payload, message := reusable_steps.VerifyPayload(payloadData)
+	if message != "" {
+		return gemara.Unknown, message, confidence
+	}
+
+	if payload.StorageAccount == nil {
+		return gemara.Unknown, "Storage account data not available", confidence
+	}
+
+	sftp := payload.StorageAccount.IsSftpEnabled
+	if sftp == nil || !*sftp {
+		return gemara.NotApplicable, "SFTP is not enabled on the storage account, so no port is exposed for SSH traffic", gemara.High
+	}
+
+	return gemara.NeedsReview, "SFTP is enabled; Azure's SFTP endpoint only negotiates SSH-2, but no automated check verifies the handshake, so confirm the negotiated protocol version manually", confidence
+}
+
 // EncryptionIsEnabled verifies that encryption at rest is enabled on the storage account.
 // This ensures data is encrypted using industry-standard encryption methods.
 func EncryptionIsEnabled(payloadData any) (result gemara.Result, message string, confidence gemara.ConfidenceLevel) {

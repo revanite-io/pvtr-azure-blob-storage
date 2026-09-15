@@ -2,7 +2,6 @@ package evaluation_plans
 
 import (
 	"github.com/revanite-io/pvtr-azure-blob-storage/evaluation_plans/ccc/data"
-	"github.com/revanite-io/pvtr-azure-blob-storage/evaluation_plans/reusable_steps"
 	"github.com/gemaraproj/go-gemara"
 )
 
@@ -138,7 +137,7 @@ var (
 		"CCC.Core.CN01.AR02": {
 			/* When a port is exposed for SSH network traffic, all traffic MUST
 			   include a SSH handshake AND be encrypted using SSHv2 or higher. */
-			reusable_steps.AzureBuiltIn,
+			data.SftpSshV2Enforced,
 		},
 		"CCC.Core.CN01.AR03": {
 			/* When the service receives unencrypted traffic,

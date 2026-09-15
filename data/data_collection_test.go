@@ -275,6 +275,7 @@ func TestLoadWithOptions_FullPayload(t *testing.T) {
 			Properties: &armstorage.AccountProperties{
 				AllowSharedKeyAccess:  ptr(false),
 				AllowBlobPublicAccess: ptr(false),
+				IsSftpEnabled:         ptr(true),
 				PublicNetworkAccess:   to.Ptr(armstorage.PublicNetworkAccessDisabled),
 				Encryption: &armstorage.Encryption{
 					KeySource: to.Ptr(armstorage.KeySourceMicrosoftKeyvault),
@@ -377,6 +378,9 @@ func TestLoadWithOptions_FullPayload(t *testing.T) {
 	// Verify storage account
 	if p.StorageAccount == nil {
 		t.Fatal("StorageAccount is nil")
+	}
+	if p.StorageAccount.IsSftpEnabled == nil || !*p.StorageAccount.IsSftpEnabled {
+		t.Error("IsSftpEnabled should be true")
 	}
 	if p.StorageAccount.AllowSharedKeyAccess == nil || *p.StorageAccount.AllowSharedKeyAccess {
 		t.Error("AllowSharedKeyAccess should be false")

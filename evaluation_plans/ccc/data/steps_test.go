@@ -1766,3 +1766,56 @@ func TestReplicationToUntrustedPrevented(t *testing.T) {
 		})
 	}
 }
+
+func TestSftpSshV2Enforced(t *testing.T) {
+	tests := []struct {
+		name       string
+		payload    any
+		wantResult gemara.Result
+	}{
+		{
+			name: "SFTP disabled returns NotApplicable",
+			payload: d.Payload{
+				StorageAccount: &d.StorageAccountData{
+					IsSftpEnabled: ptr(false),
+				},
+			},
+			wantResult: gemara.NotApplicable,
+		},
+		{
+			name: "nil IsSftpEnabled returns NotApplicable",
+			payload: d.Payload{
+				StorageAccount: &d.StorageAccountData{},
+			},
+			wantResult: gemara.NotApplicable,
+		},
+		{
+			name: "SFTP enabled returns NeedsReview",
+			payload: d.Payload{
+				StorageAccount: &d.StorageAccountData{
+					IsSftpEnabled: ptr(true),
+				},
+			},
+			wantResult: gemara.NeedsReview,
+		},
+		{
+			name:       "nil StorageAccount returns Unknown",
+			payload:    d.Payload{},
+			wantResult: gemara.Unknown,
+		},
+		{
+			name:       "malformed payload returns Unknown",
+			payload:    "wrong",
+			wantResult: gemara.Unknown,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, _, _ := SftpSshV2Enforced(tt.payload)
+			if result != tt.wantResult {
+				t.Errorf("got %v, want %v", result, tt.wantResult)
+			}
+		})
+	}
+}
