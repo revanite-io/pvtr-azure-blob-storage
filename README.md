@@ -102,7 +102,6 @@ The plugin evaluates controls from two CCC catalogs:
 | CN03 | Bucket deletion recovery and immutability |
 | CN04 | Default retention policies |
 | CN05 | Object versioning |
-| CN06 | Access logging |
 | CN07 | MFA deletion protection |
 
 ### CCC.Core
