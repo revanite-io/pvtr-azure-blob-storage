@@ -800,9 +800,8 @@ func ReplicationToUntrustedPrevented(payloadData any) (result gemara.Result, mes
 		return gemara.Unknown, message, confidence
 	}
 
-	// TODO: Implement actual check once payload structure is available
-	// Based on CCC_C10_TR01 from plugin-to-upgrade/ABS/CCC_C10.go
-	// This is enforced by Azure - replication outside network access is always blocked
-	return gemara.Passed, "Object replication outside of the network access enabled on the Storage Account is always blocked on Azure Storage Accounts", confidence
+	// No automated check inspects the account's object-replication policies yet;
+	// until one does, an unverified platform-behavior claim must not report Passed.
+	return gemara.NeedsReview, "No automated check inspects object replication policies; Azure is expected to block replication outside the Storage Account's network access, but verify replication targets manually", confidence
 }
 

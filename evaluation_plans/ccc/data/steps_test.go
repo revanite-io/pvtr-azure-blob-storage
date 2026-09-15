@@ -1747,9 +1747,9 @@ func TestReplicationToUntrustedPrevented(t *testing.T) {
 		wantResult gemara.Result
 	}{
 		{
-			name:       "valid payload returns Passed",
+			name:       "valid payload returns NeedsReview until a real check exists",
 			payload:    d.Payload{},
-			wantResult: gemara.Passed,
+			wantResult: gemara.NeedsReview,
 		},
 		{
 			name:       "wrong type returns Unknown",
