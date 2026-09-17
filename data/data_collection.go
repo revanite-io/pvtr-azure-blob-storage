@@ -50,6 +50,7 @@ type StorageAccountData struct {
 	// Authentication and Access
 	AllowSharedKeyAccess  *bool
 	AllowBlobPublicAccess *bool
+	IsSftpEnabled         *bool
 
 	// Network Configuration
 	PublicNetworkAccess *string // "Enabled", "Disabled", "SecuredByPerimeter"
@@ -363,6 +364,7 @@ func fetchStorageAccount(
 	sa := &StorageAccountData{
 		AllowSharedKeyAccess:  props.AllowSharedKeyAccess,
 		AllowBlobPublicAccess: props.AllowBlobPublicAccess,
+		IsSftpEnabled:         props.IsSftpEnabled,
 	}
 
 	// Public network access (enum -> string)

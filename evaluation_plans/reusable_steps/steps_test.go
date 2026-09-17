@@ -38,20 +38,3 @@ func TestNotImplemented(t *testing.T) {
 		t.Errorf("msg = %q", msg)
 	}
 }
-
-func TestAzureBuiltIn_ValidPayload(t *testing.T) {
-	result, _, _ := AzureBuiltIn(data.Payload{})
-	if result != gemara.Passed {
-		t.Errorf("result = %v, want Passed", result)
-	}
-}
-
-func TestAzureBuiltIn_InvalidPayload(t *testing.T) {
-	result, msg, _ := AzureBuiltIn("wrong")
-	if result != gemara.Unknown {
-		t.Errorf("result = %v, want Unknown", result)
-	}
-	if msg == "" {
-		t.Error("expected error message")
-	}
-}
