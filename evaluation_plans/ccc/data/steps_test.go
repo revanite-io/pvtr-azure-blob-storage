@@ -1508,9 +1508,9 @@ func TestPreventUntrustedKmsKeysForBucketRead(t *testing.T) {
 		wantResult gemara.Result
 	}{
 		{
-			name:       "valid payload returns NeedsReview",
+			name:       "empty payload returns Unknown",
 			payload:    d.Payload{},
-			wantResult: gemara.NeedsReview,
+			wantResult: gemara.Unknown,
 		},
 		{
 			name:       "wrong type returns Unknown",
@@ -1537,9 +1537,9 @@ func TestPreventUntrustedKmsKeysForObjectRead(t *testing.T) {
 		wantResult gemara.Result
 	}{
 		{
-			name:       "valid payload returns NeedsReview",
+			name:       "empty payload returns Unknown",
 			payload:    d.Payload{},
-			wantResult: gemara.NeedsReview,
+			wantResult: gemara.Unknown,
 		},
 		{
 			name:       "wrong type returns Unknown",
@@ -1566,9 +1566,9 @@ func TestPreventUntrustedKmsKeysForBucketWrite(t *testing.T) {
 		wantResult gemara.Result
 	}{
 		{
-			name:       "valid payload returns NeedsReview",
+			name:       "empty payload returns Unknown",
 			payload:    d.Payload{},
-			wantResult: gemara.NeedsReview,
+			wantResult: gemara.Unknown,
 		},
 		{
 			name:       "wrong type returns Unknown",
@@ -1595,9 +1595,9 @@ func TestPreventUntrustedKmsKeysForObjectWrite(t *testing.T) {
 		wantResult gemara.Result
 	}{
 		{
-			name:       "valid payload returns NeedsReview",
+			name:       "empty payload returns Unknown",
 			payload:    d.Payload{},
-			wantResult: gemara.NeedsReview,
+			wantResult: gemara.Unknown,
 		},
 		{
 			name:       "wrong type returns Unknown",
@@ -1815,6 +1815,91 @@ func TestSftpSshV2Enforced(t *testing.T) {
 			result, _, _ := SftpSshV2Enforced(tt.payload)
 			if result != tt.wantResult {
 				t.Errorf("got %v, want %v", result, tt.wantResult)
+			}
+		})
+	}
+}
+
+// cmkPayload builds a payload with the given encryption key source and
+// CMK-required policy state.
+func cmkPayload(keySource string, policies *d.PoliciesData) d.Payload {
+	return d.Payload{
+		StorageAccount: &d.StorageAccountData{
+			Encryption: &d.EncryptionData{KeySource: ptr(keySource)},
+		},
+		Policies: policies,
+	}
+}
+
+func TestPreventUntrustedKmsKeysForBucketRead_Evidence(t *testing.T) {
+	tests := []struct {
+		name       string
+		payload    any
+		wantResult gemara.Result
+	}{
+		{
+			name: "CMK with enforced policy returns Passed",
+			payload: cmkPayload("Microsoft.Keyvault", &d.PoliciesData{
+				CmkRequired: &d.CmkRequiredPolicy{Assigned: true},
+			}),
+			wantResult: gemara.Passed,
+		},
+		{
+			name: "CMK with audit-only policy returns NeedsReview",
+			payload: cmkPayload("Microsoft.Keyvault", &d.PoliciesData{
+				CmkRequired: &d.CmkRequiredPolicy{Assigned: true, EnforcementMode: ptr("DoNotEnforce")},
+			}),
+			wantResult: gemara.NeedsReview,
+		},
+		{
+			name:       "CMK without policy assignment returns NeedsReview",
+			payload:    cmkPayload("Microsoft.Keyvault", &d.PoliciesData{}),
+			wantResult: gemara.NeedsReview,
+		},
+		{
+			name:       "CMK with policy data unavailable returns NeedsReview",
+			payload:    cmkPayload("Microsoft.Keyvault", nil),
+			wantResult: gemara.NeedsReview,
+		},
+		{
+			name:       "platform-managed keys returns Failed",
+			payload:    cmkPayload("Microsoft.Storage", nil),
+			wantResult: gemara.Failed,
+		},
+		{
+			name:       "missing encryption data returns Unknown",
+			payload:    d.Payload{StorageAccount: &d.StorageAccountData{}},
+			wantResult: gemara.Unknown,
+		},
+		{
+			name:       "malformed payload returns Unknown",
+			payload:    "wrong",
+			wantResult: gemara.Unknown,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, _, _ := PreventUntrustedKmsKeysForBucketRead(tt.payload)
+			if result != tt.wantResult {
+				t.Errorf("got %v, want %v", result, tt.wantResult)
+			}
+		})
+	}
+}
+
+func TestPreventUntrustedKmsKeysDelegates(t *testing.T) {
+	payload := cmkPayload("Microsoft.Keyvault", &d.PoliciesData{
+		CmkRequired: &d.CmkRequiredPolicy{Assigned: true},
+	})
+	for name, step := range map[string]func(any) (gemara.Result, string, gemara.ConfidenceLevel){
+		"object read":  PreventUntrustedKmsKeysForObjectRead,
+		"bucket write": PreventUntrustedKmsKeysForBucketWrite,
+		"object write": PreventUntrustedKmsKeysForObjectWrite,
+	} {
+		t.Run(name, func(t *testing.T) {
+			result, _, _ := step(payload)
+			if result != gemara.Passed {
+				t.Errorf("got %v, want Passed", result)
 			}
 		})
 	}
