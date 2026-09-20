@@ -162,6 +162,23 @@ type DefenderForStorageData struct {
 // PoliciesData contains Azure Policy assignments
 type PoliciesData struct {
 	AllowedLocations *AllowedLocationsPolicy
+	// Assignment of the built-in "Storage accounts should use
+	// customer-managed key for encryption" policy.
+	CmkRequired *CmkRequiredPolicy
+}
+
+// CmkRequiredPolicy contains the CMK-required policy assignment state.
+type CmkRequiredPolicy struct {
+	Assigned        bool
+	EnforcementMode *string // "Default" (enforced) or "DoNotEnforce"
+}
+
+// Enforced reports whether the assignment actively denies violations.
+func (p *CmkRequiredPolicy) Enforced() bool {
+	if p == nil || !p.Assigned {
+		return false
+	}
+	return p.EnforcementMode == nil || *p.EnforcementMode == "Default"
 }
 
 // AllowedLocationsPolicy contains allowed locations policy information
@@ -197,6 +214,8 @@ func parseResourceID(raw string) (resourceID, error) {
 // Well-known Azure Policy definition IDs
 const (
 	policyAllowedLocations = "e56962a6-4747-49cd-b67b-bf8b01975c4c"
+	// "Storage accounts should use customer-managed key for encryption"
+	policyCmkRequired = "6fac406b-40ca-413b-bf8e-0bf964659c25"
 )
 
 // Loader is the SDK-compatible entrypoint.
@@ -608,6 +627,13 @@ func fetchPolicies(
 					}
 				}
 				policies.AllowedLocations = al
+			}
+
+			if strings.Contains(defID, policyCmkRequired) {
+				policies.CmkRequired = &CmkRequiredPolicy{
+					Assigned:        true,
+					EnforcementMode: enforcementMode,
+				}
 			}
 		}
 	}

@@ -226,55 +226,48 @@ func EncryptionIsEnabled(payloadData any) (result gemara.Result, message string,
 }
 
 // PreventUntrustedKmsKeysForBucketRead verifies that requests to read buckets using untrusted KMS keys are prevented.
+// Azure has no per-request KMS keys; trust is established by the account
+// using a customer-managed key (CMK) from the designated Key Vault, and by
+// the built-in "Storage accounts should use customer-managed key for
+// encryption" Azure Policy preventing non-CMK configurations.
 func PreventUntrustedKmsKeysForBucketRead(payloadData any) (result gemara.Result, message string, confidence gemara.ConfidenceLevel) {
-	_, message = reusable_steps.VerifyPayload(payloadData)
+	payload, message := reusable_steps.VerifyPayload(payloadData)
 	if message != "" {
 		return gemara.Unknown, message, confidence
 	}
 
-	// This is a new requirement - Azure Storage Accounts don't have bucket-level KMS key restrictions
-	// This would need to be enforced at the application/service level or through Azure Policy
-	// Return NeedsReview for manual verification
-	return gemara.NeedsReview, "This requirement needs to be verified manually. Azure Storage Accounts do not natively support bucket-level KMS key restrictions. This should be enforced at the application/service level or through custom Azure Policy", confidence
+	if payload.StorageAccount == nil || payload.StorageAccount.Encryption == nil || payload.StorageAccount.Encryption.KeySource == nil {
+		return gemara.Unknown, "Encryption key source not available", confidence
+	}
+
+	if *payload.StorageAccount.Encryption.KeySource != "Microsoft.Keyvault" {
+		return gemara.Failed, "Storage account uses platform-managed keys, so KMS key trust cannot be enforced", gemara.High
+	}
+
+	if payload.Policies == nil {
+		return gemara.NeedsReview, "Storage account uses a customer-managed key, but Azure Policy data is unavailable. Verify manually that the CMK-required policy prevents reconfiguration to untrusted keys", confidence
+	}
+
+	if !payload.Policies.CmkRequired.Enforced() {
+		return gemara.NeedsReview, "Storage account uses a customer-managed key, but the built-in CMK-required Azure Policy is not assigned with Default enforcement, so nothing prevents reconfiguration to untrusted keys", confidence
+	}
+
+	return gemara.Passed, "Storage account uses a customer-managed key from the designated Key Vault, and the CMK-required Azure Policy is enforced, preventing untrusted key configurations", gemara.High
 }
 
 // PreventUntrustedKmsKeysForObjectRead verifies that requests to read objects using untrusted KMS keys are prevented.
 func PreventUntrustedKmsKeysForObjectRead(payloadData any) (result gemara.Result, message string, confidence gemara.ConfidenceLevel) {
-	_, message = reusable_steps.VerifyPayload(payloadData)
-	if message != "" {
-		return gemara.Unknown, message, confidence
-	}
-
-	// This is a new requirement - Azure Storage Accounts don't have object-level KMS key restrictions
-	// This would need to be enforced at the application/service level or through Azure Policy
-	// Return NeedsReview for manual verification
-	return gemara.NeedsReview, "This requirement needs to be verified manually. Azure Storage Accounts do not natively support object-level KMS key restrictions. This should be enforced at the application/service level or through custom Azure Policy", confidence
+	return PreventUntrustedKmsKeysForBucketRead(payloadData)
 }
 
 // PreventUntrustedKmsKeysForBucketWrite verifies that requests to write to buckets using untrusted KMS keys are prevented.
 func PreventUntrustedKmsKeysForBucketWrite(payloadData any) (result gemara.Result, message string, confidence gemara.ConfidenceLevel) {
-	_, message = reusable_steps.VerifyPayload(payloadData)
-	if message != "" {
-		return gemara.Unknown, message, confidence
-	}
-
-	// This is a new requirement - Azure Storage Accounts don't have bucket-level KMS key restrictions
-	// This would need to be enforced at the application/service level or through Azure Policy
-	// Return NeedsReview for manual verification
-	return gemara.NeedsReview, "This requirement needs to be verified manually. Azure Storage Accounts do not natively support bucket-level KMS key restrictions. This should be enforced at the application/service level or through custom Azure Policy", confidence
+	return PreventUntrustedKmsKeysForBucketRead(payloadData)
 }
 
 // PreventUntrustedKmsKeysForObjectWrite verifies that requests to write to objects using untrusted KMS keys are prevented.
 func PreventUntrustedKmsKeysForObjectWrite(payloadData any) (result gemara.Result, message string, confidence gemara.ConfidenceLevel) {
-	_, message = reusable_steps.VerifyPayload(payloadData)
-	if message != "" {
-		return gemara.Unknown, message, confidence
-	}
-
-	// This is a new requirement - Azure Storage Accounts don't have object-level KMS key restrictions
-	// This would need to be enforced at the application/service level or through Azure Policy
-	// Return NeedsReview for manual verification
-	return gemara.NeedsReview, "This requirement needs to be verified manually. Azure Storage Accounts do not natively support object-level KMS key restrictions. This should be enforced at the application/service level or through custom Azure Policy", confidence
+	return PreventUntrustedKmsKeysForBucketRead(payloadData)
 }
 
 // SharedKeyAccessDisabledForDenial verifies that shared key access is disabled, ensuring uniform bucket-level access for denial cases.
