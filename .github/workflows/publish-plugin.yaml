@@ -57,7 +57,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: install pvtr
-        # go install names the binary after the module: privateer, not pvtr.
+        # go install names the binary after the module path's last element: pvtr.
         run: go install "github.com/privateerproj/pvtr@${PVTR_VERSION}"
       # This rebuild is not byte-identical to the release-attested artifacts
       # (BuiltAt is stamped per build), so the hub's Sigstore bundle attests
@@ -81,4 +81,4 @@ jobs:
             "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${audience_uri}" | jq -er '.value // empty')
           echo "::add-mask::${PVTR_TOKEN}"
           export PVTR_TOKEN
-          privateer publish
+          pvtr publish
