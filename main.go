@@ -41,7 +41,7 @@ func main() {
 		PluginName:    PluginName,
 		PluginVersion: Version,
 		PluginUri:     "https://github.com/revanite-io/pvtr-azure-blob-storage",
-		Publisher:     "jmeridth",   // grc.store namespace: coordinate = jmeridth/pvtr-azure-blob-storage
+		Publisher:     "privateer",  // grc.store namespace: coordinate = privateer/pvtr-azure-blob-storage
 		License:       "Apache-2.0", // SPDX expression; required to publish
 		// The vendored CCC catalog's metadata.author.id is "FINOS-CCC", which
 		// doesn't match the lowercase grc.store namespace slug that owns it.
